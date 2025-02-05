@@ -16,7 +16,7 @@ def main():
     N = 4
     weight_range = (10, 100)
     seed = 55 
-    TSP = False  # If TSP=False, then Maxcut will be executed
+    TSP = True  # If TSP=False, then Maxcut will be executed
 
     # Instantiate and create the graph
     graph = Graph(N, weight_range, seed)
@@ -50,10 +50,7 @@ def main():
     # qubo_problem = DCMST_QUBO(graph.G, degree_constraints, config, mixer='LogicalX', initial_state='OHE')
 
     # With mixer X - Standard formulation for TSP
-    # qubo_problem = QAOA_TSP_Maxcut(graph.G, config, TSP=True)
-
-    # With mixer X - Standard formulation for TSP
-    qubo_problem = QAOA_TSP_Maxcut(graph.G, config, TSP=TSP)
+    qubo_problem = QAOA_TSP_Maxcut(graph.G, config, TSP=TSP, fake_backend=False)
 
     # Print the number of qubits necessary to solve the problem
     qubo_problem.print_number_of_qubits()

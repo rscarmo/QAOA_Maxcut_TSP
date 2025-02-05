@@ -70,6 +70,7 @@ class QAOA_TSP_Maxcut:
         self.var_names = None
 
         self.objective_func_vals = []
+        self.qaoa_circuit = None
 
         self._configure_variables()
         self._define_objective_function()
@@ -253,8 +254,8 @@ class QAOA_TSP_Maxcut:
         # Extract coherence times with qubit indices
         coherence_times = {}
         for qubit_index, qubit in enumerate(properties.qubits):
-            T1 = None
-            T2 = None
+            T1 = 0
+            T2 = 0
             for param in qubit:
                 if param.name == 'T1':
                     T1 = param.value
@@ -303,9 +304,6 @@ class QAOA_TSP_Maxcut:
 
         backend = self.configure_backend()
 
-        if self.fake_backend or self.config.SIMULATION == False:
-            self.time_execution_feasibility(backend)
-
         estimator = Estimator(backend)
         estimator.options.default_shots = 1000
 
@@ -341,7 +339,13 @@ class QAOA_TSP_Maxcut:
         print(qaoa_mes.draw(output='mpl'))        
 
         # Transpile the circuit
-        self.qaoa_circuit = pm.run(qaoa_mes)     
+        self.qaoa_circuit = pm.run(qaoa_mes) 
+
+        if self.fake_backend or self.config.SIMULATION == False:
+            try:
+                self.time_execution_feasibility(backend)
+            except:
+                pass            
 
         print(self.qaoa_circuit.draw(output='mpl'))
             
