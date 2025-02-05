@@ -107,8 +107,7 @@ def sample_and_plot_histogram_tsp(samples, adj_matrix, N, interpret_solution_fn,
         # Se a função interpretou e validou de fato (pode conter None se inválida)
         # 'tsp_solution' aqui deve ser algo como uma lista de edges (u,v,w)
         if tsp_solution and all(e is not None for e in tsp_solution):
-            # Ordene as arestas para ter uma chave única que identifique a solução
-            edges_tuple = tuple(sorted(tsp_solution))
+            edges_tuple = tuple(tsp_solution)
             
             # 1.3) Acumule na nossa estrutura
             # Frequência multiplicada se você quiser "ampliar" a escala.

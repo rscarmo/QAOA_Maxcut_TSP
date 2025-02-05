@@ -73,6 +73,8 @@ class QAOA_TSP_Maxcut:
 
         self._configure_variables()
         self._define_objective_function()
+        if self.TSP:
+            self._add_constraints()
 
     def _configure_variables(self):
         if self.Maxcut:
@@ -120,7 +122,7 @@ class QAOA_TSP_Maxcut:
         if self.Maxcut:
             print(self.qb.prettyprint())
 
-    def add_constraints(self):
+    def _add_constraints(self):
         if self.TSP:
             # Each city is visited exactly once
             for i in range(1, self.num_cities):
@@ -130,7 +132,7 @@ class QAOA_TSP_Maxcut:
                     linear=coeffs,
                     sense='==',
                     rhs=1,
-                    name=f"constraint_p_{i}"
+                    name=f"constraint_{i}_p"
                 )
     
             # Each position in the tour is occupied by exactly one city
@@ -142,7 +144,7 @@ class QAOA_TSP_Maxcut:
                     linear=coeffs,
                     sense='==',
                     rhs=1,
-                    name=f"constraint_p_{p}"
+                    name=f"constraint_i_{p}"
                 )
             print(self.qb.prettyprint())
     
@@ -188,7 +190,10 @@ class QAOA_TSP_Maxcut:
 
         self.objective_func_vals.append(cost)
 
-        return cost + offset
+        if not self.Maxcut:
+            return cost + offset
+        else:
+            return - (cost + offset)
 
     
     def evaluate_bitstring_cost(self, bitstring: str) -> float:
@@ -326,12 +331,14 @@ class QAOA_TSP_Maxcut:
 
         qaoa_mes = QAOAAnsatz(
             cost_operator=qubo_ops,
-            reps=p
+            reps=p          
         )
         qaoa_mes.measure_all()
 
         # Create a custom pass manager
         pm = generate_preset_pass_manager(optimization_level=3, backend=backend)
+
+        print(qaoa_mes.draw(output='mpl'))        
 
         # Transpile the circuit
         self.qaoa_circuit = pm.run(qaoa_mes)     

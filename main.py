@@ -15,8 +15,8 @@ def main():
     # Example usage
     N = 4
     weight_range = (10, 100)
-    seed = 51 
-    TSP = True  # If TSP=False, then Maxcut will be executed
+    seed = 55 
+    TSP = False  # If TSP=False, then Maxcut will be executed
 
     # Instantiate and create the graph
     graph = Graph(N, weight_range, seed)
@@ -64,8 +64,6 @@ def main():
     samples = qubo_problem.qubo_sample(optimal_params)
 
     # Visualize the solution
-
-
     if TSP:
         valid_solution = sample_and_plot_histogram_tsp(
             samples,
