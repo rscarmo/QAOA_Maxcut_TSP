@@ -88,11 +88,19 @@ class QAOA_TSP_Maxcut:
 
     def _define_objective_function(self):
         linear_terms = {}
-        quadratic_terms = {}        
+        quadratic_terms = {}
+
         if self.Maxcut:
-            for i in self.G.nodes:
-                for i, j, w in self.G.edges(data='weight'):
-                    quadratic_terms[(f'x{i}', f'x{j}')] = -w  # Negative because we maximize
+            # Para cada aresta (i, j) com peso w:
+            for i, j, w in self.G.edges(data='weight'):
+                # Atualiza os termos lineares para x_i e x_j (soma w para cada ocorrência)
+                linear_terms[f'x{i}'] = linear_terms.get(f'x{i}', 0) + w
+                linear_terms[f'x{j}'] = linear_terms.get(f'x{j}', 0) + w
+
+                # Atualiza o termo quadrático para a interação x_i * x_j: -2w
+                key = (f'x{i}', f'x{j}')
+                quadratic_terms[key] = quadratic_terms.get(key, 0) - 2 * w
+
         elif self.TSP:
             for i in range(1, self.num_cities):
                 for j in range(1, self.num_cities):

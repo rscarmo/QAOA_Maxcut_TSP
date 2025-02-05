@@ -69,7 +69,7 @@ def interpret_solution(solution_dict, N):
 
 
 
-def sample_and_plot_histogram(samples, adj_matrix, N, interpret_solution_fn,
+def sample_and_plot_histogram_tsp(samples, adj_matrix, N, interpret_solution_fn,
                               top_n=30, var_names=None):
     """
     Interpret QUBO samples, validate solutions, and plot a histogram of the most sampled valid bitstrings.
@@ -177,9 +177,6 @@ def sample_and_plot_histogram(samples, adj_matrix, N, interpret_solution_fn,
     return most_common_valid_solutions
 
 
-import matplotlib.pyplot as plt
-import networkx as nx
-
 def draw_tsp_solution(graph, solution_list, title="Traveling Salesman Solution"):
     """
     Visualize the TSP solution based on binary variable assignments such as x_{i}_{p} = 1.
@@ -252,86 +249,65 @@ def draw_tsp_solution(graph, solution_list, title="Traveling Salesman Solution")
     plt.show()
 
 
-def interpret_maxcut_solution(solution_dict, G):
+def interpret_maxcut_solution(bitstring, G):
     """
-    Interpret a solution dict {x0:0/1, x1:0/1, ...} as a MaxCut partition.
-    
+    Interpret a bitstring as a MaxCut partition.
+
     Parameters:
-        solution_dict (dict): e.g. {"x0":0, "x1":1, ...}
-        G (nx.Graph): your graph with .edges(data="weight")
+        bitstring (str): A string of '0's and '1's representing the partition (e.g., '10101').
+        G (nx.Graph): The graph with .edges(data='weight').
 
     Returns:
-        cost (float): the total cut value
-        cut_edges (list[tuple]): list of edges that go across the cut
-        partition (set): set of nodes that have bit = 1
+        cost (float): The total cut value.
+        cut_edges (list[tuple]): List of edges that cross the cut.
+        partition (set): Set of nodes in the partition (corresponding to '1's in the bitstring).
     """
-    partition = { int(var_name.strip("x")) 
-                  for var_name, val in solution_dict.items() 
-                  if val == 1 }
+    # Convert the bitstring into a set of nodes in the partition (corresponding to '1')
+    partition = {i for i, bit in enumerate(bitstring) if bit == '1'}
 
     cut_edges = []
     cost = 0.0
-    
+
     # For each weighted edge, check if it crosses the partition
     for u, v, w in G.edges(data="weight", default=1):
-        in_partition_u = (u in partition)
-        in_partition_v = (v in partition)
-        if in_partition_u != in_partition_v:  # crosses the partition
+        if (u in partition) != (v in partition):  # crosses the partition
             cost += w
             cut_edges.append((u, v))
-    
+
     return cost, cut_edges, partition
 
 
-def sample_and_plot_maxcut_histogram(
-    samples,      # {bitstring: freq} from QAOA
-    var_names,    # e.g. ["x0", "x1", "x2", ...] in correct order
-    G,            # your nx.Graph
-    top_n=10
-):
+def sample_and_plot_maxcut_histogram(samples, G, top_n=10):
     """
-    Interpret QAOA MaxCut samples, compute cut values, and plot a histogram of the top solutions.
-    
+    Interpret MaxCut QAOA samples, compute cut values, and plot a histogram.
+
+    Parameters:
+        samples (dict): A dictionary {bitstring: frequency}.
+        G (nx.Graph): The graph for MaxCut.
+        top_n (int): Number of top solutions to display.
+
     Returns:
-        most_common_solutions: list of (cost, freq, partition, cut_edges)
+        most_common_solutions: List of (cost, frequency, bitstring, cut_edges).
     """
-    # aggregator: { unique_partition_signature -> {"freq": float, "cost": float, "bitstrings": []} }
-    aggregator = defaultdict(lambda: {"freq": 0.0, "cost": 0.0, "bitstrings": [], "cut_edges": set()})
-    
-    # 1) Go through each bitstring and frequency
+    # Store solutions with their computed costs and frequencies
+    solution_data = []
+
     for bitstring, freq in samples.items():
-        # Convert bitstring -> dict
-        # E.g. bitstring = '1010', var_names = ['x0','x1','x2','x3']
-        solution_dict = {}
-        for var, bit in zip(var_names, bitstring):
-            solution_dict[var] = int(bit)
-        
-        # 2) Interpret as MaxCut
-        cost, cut_edges, partition = interpret_maxcut_solution(solution_dict, G)
-        
-        # 3) Build a canonical signature
-        # Option A: use a frozenset of the partition
-        # But partition vs complement has the same cut. If you want
-        #  to treat them as the same solution, you can choose to always
-        #  store the "smaller side" as the canonical one, or something similar.
-        # For simplicity, let's store the cut_edges sorted as the signature:
-        cut_signature = tuple(sorted(cut_edges))
-        
-        aggregator[cut_signature]["freq"]      += freq
-        aggregator[cut_signature]["cost"]       = cost  # cost is the same for all
-        aggregator[cut_signature]["bitstrings"].append(bitstring)
-        aggregator[cut_signature]["cut_edges"]  = cut_edges
-    
-    # 4) Sort solutions by total frequency
-    sorted_agg = sorted(aggregator.items(), key=lambda item: item[1]["freq"], reverse=True)
-    
-    # 5) Limit to top_n
-    sorted_agg = sorted_agg[:top_n]
-    
-    # Prepare data for histogram
-    labels = [f"Cut {i+1}" for i in range(len(sorted_agg))]
-    frequencies = [data["freq"] for _, data in sorted_agg]
-    
+        # Interpret each bitstring
+        cost, cut_edges, partition = interpret_maxcut_solution(bitstring, G)
+        solution_data.append((cost, freq, bitstring, cut_edges))
+
+    # Sort by cost (descending) and frequency (descending)
+    sorted_solutions = sorted(solution_data, key=lambda x: (-x[1]))
+
+    # Select the top_n solutions
+    top_solutions = sorted_solutions[:top_n]
+
+    # Prepare data for the histogram
+    labels = [f"{bitstring}" for _,_,bitstring,_ in top_solutions]
+    frequencies = [data[1] for data in top_solutions]
+
+    # Plot the histogram
     plt.figure(figsize=(8, 5))
     plt.bar(labels, frequencies, color="skyblue")
     plt.title(f"Top {top_n} Most Frequent MaxCut Solutions")
@@ -340,24 +316,19 @@ def sample_and_plot_maxcut_histogram(
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
     plt.show()
-    
-    # Build a nicer return structure
-    most_common_solutions = []
-    for i, (cut_signature, data) in enumerate(sorted_agg, start=1):
-        cost = data["cost"]
-        freq = data["freq"]
-        bs_list = data["bitstrings"]
-        cut_edges = data["cut_edges"]
-        
-        most_common_solutions.append((cost, freq, bs_list, cut_edges))
-        
-        print(f"Cut {i}: cost={cost}, freq={freq}, edges={cut_signature}")
-        print(f"Bitstrings that produced this cut: {bs_list}\n")
-    
-    return most_common_solutions
 
-import networkx as nx
-import matplotlib.pyplot as plt
+    # Print details of the top solutions
+    print("\nTop MaxCut Solutions:")
+    for i, (cost, freq, bitstring, cut_edges) in enumerate(top_solutions, start=1):
+        print(f"Solution {i}:")
+        print(f"  Bitstring: {bitstring}")
+        print(f"  Cost: {cost}")
+        print(f"  Frequency: {freq}")
+        print(f"  Cut Edges: {cut_edges}")
+        print("-" * 50)
+
+    return top_solutions
+
 
 def draw_maxcut_solution(G, partition, cut_edges, title="MaxCut Solution"):
     """
@@ -394,22 +365,19 @@ def draw_maxcut_solution(G, partition, cut_edges, title="MaxCut Solution"):
     plt.show()
 
 
-def pick_and_draw_a_top_solution(
-    G, 
-    var_names, 
-    top_solutions # output from sample_and_plot_maxcut_histogram
-):
+def pick_and_draw_a_top_solution(G, top_solutions):
     # Suppose you pick the #1 top solution
     (cost, freq, bs_list, cut_edges) = top_solutions[0]
-    best_bitstring = bs_list[0]  # pick the first bitstring that gave this solution
+    best_bitstring = bs_list  # pick the first bitstring that gave this solution
+
+    # Directly derive the partition from the bitstring
+    partition = {i for i, bit in enumerate(best_bitstring) if bit == '1'}
     
-    # Convert bitstring -> dict
-    solution_dict = {}
-    for var, bit in zip(var_names, best_bitstring):
-        solution_dict[var] = int(bit)
-    
-    # Now interpret the solution fully
-    cost, cut_edges, partition = interpret_maxcut_solution(solution_dict, G)
-    
-    print(f"Drawing the top solution with cost={cost}, freq={freq}")
+    print(f"Best Bitstring: {best_bitstring}")
+    print(f"Partition: {partition}")
+    print(f"Cut Edges: {cut_edges}")
+    print(f"Cost: {cost}, Frequency: {freq}")
+
+    # Draw the solution
     draw_maxcut_solution(G, partition, cut_edges, title="Top MaxCut QAOA Solution")
+

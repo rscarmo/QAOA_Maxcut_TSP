@@ -102,7 +102,7 @@ class Graph:
         plt.axis('off')
         plt.show()    
 
-    def brute_force_maxcut(self, G):
+    def brute_force_maxcut(self):
         """
         Brute force approach to find the maximum cut of a small graph.
         
@@ -111,8 +111,8 @@ class Graph:
             best_partition (set): which nodes are in side A
             best_cut_edges (list): edges crossing the cut
         """
-        n = G.number_of_nodes()
-        nodes = list(G.nodes())
+        n = self.G.number_of_nodes()
+        nodes = list(self.G.nodes())
         best_cost = float('-inf')
         best_partition = set()
         best_cut_edges = []
@@ -126,7 +126,7 @@ class Graph:
             # Calculate cost
             cost = 0
             cut_edges = []
-            for u, v, w in G.edges(data='weight', default=1):
+            for u, v, w in self.G.edges(data='weight', default=1):
                 # If it crosses the partition
                 if (u in current_partition) != (v in current_partition):
                     cost += w
@@ -139,13 +139,13 @@ class Graph:
         
         return best_cost, best_partition, best_cut_edges
 
-    def draw_brute_force_maxcut_solution(self, G):
+    def draw_brute_force_maxcut_solution(self):
         """
         Find the maximum cut by brute force and draw it.
         """
-        best_cost, best_partition, best_cut_edges = self.brute_force_maxcut(G)
+        best_cost, best_partition, best_cut_edges = self.brute_force_maxcut()
         print(f"Brute force found best cut cost = {best_cost}")
-        draw_maxcut_solution(G, best_partition, best_cut_edges, 
+        draw_maxcut_solution(self.G, best_partition, best_cut_edges, 
                             title="Best Cut by Brute Force")
 
 
